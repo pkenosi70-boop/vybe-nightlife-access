@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Switch, Alert, ActivityIndicator, FlatList,
+  View, Text, StyleSheet, TouchableOpacity, Alert, FlatList,
   RefreshControl,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -22,8 +21,8 @@ export default function HostScreen() {
   const [showScanner, setShowScanner] = useState(false)
   const checkIn = useCheckIn()
 
-  const handleScan = async (qrCode: string) => {
-    if (!user) return
+  const handleScan = async (qrCode: string): Promise<boolean> => {
+    if (!user || checkIn.isPending) return false
     
     try {
       const result = await checkIn.mutateAsync({ qrCode, hostId: user.id })
@@ -32,9 +31,11 @@ export default function HostScreen() {
         `Welcome, ${result.request.userName}!\nEntry granted for ${result.event.title}.`
       )
       setShowScanner(false)
-      refetch()
+      await refetch()
+      return true
     } catch (e: any) {
       Alert.alert('Entry Denied ❌', e.message || 'Invalid ticket')
+      return false
     }
   }
 
@@ -104,7 +105,7 @@ export default function HostScreen() {
             <View style={styles.emptyHost}>
               <Text style={styles.emptyIcon}>🎪</Text>
               <Text style={styles.emptyTitle}>No events yet</Text>
-              <Text style={styles.emptySub}>Tap "New Event" to create your first event</Text>
+              <Text style={styles.emptySub}>Tap New Event to create your first event</Text>
             </View>
           }
         />

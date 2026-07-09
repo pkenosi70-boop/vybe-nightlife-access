@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { blink } from '@/lib/blink'
 
+const db = blink.db as any
+
 export interface Notification {
   id: string
   userId: string
@@ -16,7 +18,7 @@ export function useNotifications(userId: string) {
   return useQuery({
     queryKey: ['notifications', userId],
     queryFn: async () => {
-      const notifs = await blink.db.notifications.list({
+      const notifs = await db.notifications.list({
         where: { userId },
         orderBy: { createdAt: 'desc' },
         limit: 50,
@@ -31,7 +33,7 @@ export function useUnreadCount(userId: string) {
   return useQuery({
     queryKey: ['notifications', 'unread', userId],
     queryFn: async () => {
-      const count = await blink.db.notifications.count({
+      const count = await db.notifications.count({
         where: { userId, isRead: '0' },
       })
       return count
@@ -44,11 +46,11 @@ export function useMarkAllRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (userId: string) => {
-      const notifs = await blink.db.notifications.list({
+      const notifs = await db.notifications.list({
         where: { userId, isRead: '0' },
       })
       if (notifs.length > 0) {
-        await blink.db.notifications.updateMany(
+        await db.notifications.updateMany(
           notifs.map((n: any) => ({ id: n.id, isRead: '1' }))
         )
       }
@@ -70,7 +72,7 @@ export function useCreateNotification() {
       type?: string
       eventId?: string
     }) => {
-      return blink.db.notifications.create({
+      return db.notifications.create({
         userId: data.userId,
         title: data.title,
         message: data.message,

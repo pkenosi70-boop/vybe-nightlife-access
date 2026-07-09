@@ -110,7 +110,7 @@ export default function NotificationsScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>🔕</Text>
               <Text style={styles.emptyTitle}>All quiet</Text>
-              <Text style={styles.emptySub}>You'll be notified when there are updates to your requests</Text>
+              <Text style={styles.emptySub}>You will be notified when there are updates to your requests</Text>
             </View>
           }
         />

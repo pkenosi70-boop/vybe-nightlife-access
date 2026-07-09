@@ -1,12 +1,16 @@
-import { Tabs } from 'expo-router'
-import { View, Text, StyleSheet } from 'react-native'
+import type { ComponentProps } from 'react'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { Redirect, Tabs } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS } from '@/lib/theme'
 import { useAuth } from '@/hooks/useAuth'
 import { useUnreadCount } from '@/hooks/useNotifications'
 
 function TabIcon({ name, color, size, badge }: {
-  name: any; color: string; size: number; badge?: number
+  name: ComponentProps<typeof Ionicons>['name']
+  color: string
+  size: number
+  badge?: number
 }) {
   return (
     <View style={{ width: size + 8, height: size + 8, alignItems: 'center', justifyContent: 'center' }}>
@@ -27,6 +31,18 @@ function NotifIcon({ color, size }: { color: string; size: number }) {
 }
 
 export default function TabsLayout() {
+  const { user, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    )
+  }
+
+  if (!user) return <Redirect href="/auth" />
+
   return (
     <Tabs
       screenOptions={{
@@ -48,56 +64,17 @@ export default function TabsLayout() {
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Discover',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="compass" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="host"
-        options={{
-          title: 'Host',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="add-circle" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="tickets"
-        options={{
-          title: 'My Tickets',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="ticket" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color, size }) => (
-            <NotifIcon color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <TabIcon name="person-circle" color={color} size={size} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Discover', tabBarIcon: ({ color, size }) => <TabIcon name="compass" color={color} size={size} /> }} />
+      <Tabs.Screen name="host" options={{ title: 'Host', tabBarIcon: ({ color, size }) => <TabIcon name="add-circle" color={color} size={size} /> }} />
+      <Tabs.Screen name="tickets" options={{ title: 'My Tickets', tabBarIcon: ({ color, size }) => <TabIcon name="ticket" color={color} size={size} /> }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Alerts', tabBarIcon: ({ color, size }) => <NotifIcon color={color} size={size} /> }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: ({ color, size }) => <TabIcon name="person-circle" color={color} size={size} /> }} />
     </Tabs>
   )
 }
 
 const styles = StyleSheet.create({
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   badge: {
     position: 'absolute', top: -2, right: -2,
     backgroundColor: COLORS.neonPink,

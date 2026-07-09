@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  Image,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router } from 'expo-router'
@@ -16,20 +15,26 @@ export default function AuthScreen() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { user, isLoading, signIn, signUp, signInWithGoogle } = useAuth()
+
+  useEffect(() => {
+    if (!isLoading && user) router.replace('/(tabs)')
+  }, [isLoading, user])
 
   const handleSubmit = async () => {
     setError('')
-    if (!email || !password) { setError('Please fill in all fields'); return }
-    if (mode === 'signup' && !name) { setError('Please enter your name'); return }
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail || !password) { setError('Please fill in all fields'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) { setError('Please enter a valid email address'); return }
+    if (password.length < 6) { setError('Password must be at least 6 characters'); return }
+    if (mode === 'signup' && !name.trim()) { setError('Please enter your name'); return }
     setLoading(true)
     try {
       if (mode === 'signin') {
-        await signIn(email, password)
+        await signIn(normalizedEmail, password)
       } else {
-        await signUp(email, password, name)
+        await signUp(normalizedEmail, password, name.trim())
       }
-      router.replace('/(tabs)')
     } catch (e: any) {
       setError(e.message || 'Authentication failed')
     } finally {
@@ -42,7 +47,6 @@ export default function AuthScreen() {
     setLoading(true)
     try {
       await signInWithGoogle()
-      router.replace('/(tabs)')
     } catch (e: any) {
       setError(e.message || 'Google sign-in failed')
     } finally {

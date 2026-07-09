@@ -8,6 +8,7 @@ interface RequestItemProps {
   request: any;
   onApprove: () => void;
   onDeny: () => void;
+  disabled?: boolean;
 }
 
 export function getStatusBg(status: string) {
@@ -26,7 +27,7 @@ export function getStatusColor(status: string) {
   }
 }
 
-export function RequestItem({ request, onApprove, onDeny }: RequestItemProps) {
+export function RequestItem({ request, onApprove, onDeny, disabled = false }: RequestItemProps) {
   return (
     <View style={styles.requestCard}>
       <LinearGradient colors={[COLORS.primary, COLORS.accent]} style={styles.reqAvatar}>
@@ -45,10 +46,10 @@ export function RequestItem({ request, onApprove, onDeny }: RequestItemProps) {
       </View>
       {request.status === 'pending' && (
         <View style={styles.reqActions}>
-          <TouchableOpacity style={styles.approveBtn} onPress={onApprove}>
+          <TouchableOpacity style={[styles.approveBtn, disabled && styles.disabled]} onPress={onApprove} disabled={disabled}>
             <Ionicons name="checkmark" size={18} color={COLORS.approved} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.denyBtn} onPress={onDeny}>
+          <TouchableOpacity style={[styles.denyBtn, disabled && styles.disabled]} onPress={onDeny} disabled={disabled}>
             <Ionicons name="close" size={18} color={COLORS.denied} />
           </TouchableOpacity>
         </View>
@@ -111,6 +112,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  disabled: { opacity: 0.45 },
   denyBtn: {
     width: 36,
     height: 36,

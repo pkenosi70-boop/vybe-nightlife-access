@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  TextInput, Alert, ActivityIndicator,
+  Alert, ActivityIndicator,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,9 +9,7 @@ import { router } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/hooks/useAuth'
 import { useUserRequests } from '@/hooks/useEvents'
-import { useNotifications } from '@/hooks/useNotifications'
 import { COLORS, SPACING, RADIUS, FONT } from '@/lib/theme'
-import { blink } from '@/lib/blink'
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -39,12 +37,11 @@ function SettingRow({ icon, label, onPress, destructive = false }: {
 export default function ProfileScreen() {
   const { user, signOut, isLoading } = useAuth()
   const { data: requests = [] } = useUserRequests(user?.id || '')
-  const { data: notifications = [] } = useNotifications(user?.id || '')
   const [signingOut, setSigningOut] = useState(false)
 
   const approved = requests.filter(r => r.status === 'approved').length
   const pending = requests.filter(r => r.status === 'pending').length
-  const attended = approved // simplified
+  const attended = requests.filter(r => Number(r.checkedIn) > 0).length
 
   const handleSignOut = async () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -56,8 +53,10 @@ export default function ProfileScreen() {
           setSigningOut(true)
           try {
             await signOut()
-            router.replace('/(tabs)')
-          } catch (e) {
+            router.replace('/auth')
+          } catch (error) {
+            Alert.alert('Sign Out Failed', error instanceof Error ? error.message : 'Please try again.')
+          } finally {
             setSigningOut(false)
           }
         },

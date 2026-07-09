@@ -2,7 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, SPACING, RADIUS, FONT } from '@/lib/theme'
-import { Review, useReviews, useUpdateReviewStatus } from '@/hooks/useReviews'
+import { useReviews, useUpdateReviewStatus } from '@/hooks/useReviews'
 import { useAuth } from '@/hooks/useAuth'
 
 interface EventReviewsProps {
@@ -33,14 +33,18 @@ export default function EventReviews({ eventId, hostId }: EventReviewsProps) {
 
   const handleReport = async (reviewId: string) => {
     try {
-      await updateStatus.mutateAsync({ id: reviewId, isReported: 1, eventId })
-    } catch (e) {}
+      await updateStatus.mutateAsync({ id: reviewId, isReported: 1, eventId, hostId })
+    } catch {
+      // Keep the review visible when moderation fails.
+    }
   }
 
   const handleHide = async (reviewId: string) => {
     try {
-      await updateStatus.mutateAsync({ id: reviewId, isHidden: 1, eventId })
-    } catch (e) {}
+      await updateStatus.mutateAsync({ id: reviewId, isHidden: 1, eventId, hostId })
+    } catch {
+      // Keep the review visible when moderation fails.
+    }
   }
 
   if (isLoading) {

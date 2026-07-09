@@ -1,5 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { blink } from '@/lib/blink'
+
+const db = blink.db as any
 
 export interface Event {
   id: string
@@ -28,6 +30,9 @@ export interface AccessRequest {
   status: 'pending' | 'approved' | 'denied'
   qrCode?: string
   checkedIn?: number
+  checkedInAt?: string
+  checkedInBy?: string
+  checkInToken?: string
   createdAt: string
   updatedAt: string
 }
@@ -36,10 +41,8 @@ export function useEvents() {
   return useQuery({
     queryKey: ['events'],
     queryFn: async () => {
-      const events = await blink.db.events.list({
-        orderBy: { dateTime: 'asc' },
-      })
-      return events as Event[]
+      const events = (await db.events.list({ where: { isPublic: '1' }, orderBy: { dateTime: 'asc' } })) as Event[]
+      return events.filter(event => Number(event.isPublic) > 0 && new Date(event.dateTime).getTime() > Date.now())
     },
   })
 }
@@ -47,53 +50,32 @@ export function useEvents() {
 export function useEvent(id: string) {
   return useQuery({
     queryKey: ['events', id],
-    queryFn: async () => {
-      const event = await blink.db.events.get(id)
-      return event as Event | null
-    },
-    enabled: !!id,
+    queryFn: async () => (await db.events.get(id)) as Event | null,
+    enabled: Boolean(id),
   })
 }
 
 export function useHostEvents(hostId: string) {
   return useQuery({
     queryKey: ['events', 'host', hostId],
-    queryFn: async () => {
-      const events = await blink.db.events.list({
-        where: { hostId },
-        orderBy: { dateTime: 'asc' },
-      })
-      return events as Event[]
-    },
-    enabled: !!hostId,
+    queryFn: async () => (await db.events.list({ where: { hostId }, orderBy: { dateTime: 'asc' } })) as Event[],
+    enabled: Boolean(hostId),
   })
 }
 
 export function useAccessRequests(eventId: string) {
   return useQuery({
     queryKey: ['access-requests', eventId],
-    queryFn: async () => {
-      const requests = await blink.db.accessRequests.list({
-        where: { eventId },
-        orderBy: { createdAt: 'desc' },
-      })
-      return requests as AccessRequest[]
-    },
-    enabled: !!eventId,
+    queryFn: async () => (await db.accessRequests.list({ where: { eventId }, orderBy: { createdAt: 'desc' } })) as AccessRequest[],
+    enabled: Boolean(eventId),
   })
 }
 
 export function useUserRequests(userId: string) {
   return useQuery({
     queryKey: ['access-requests', 'user', userId],
-    queryFn: async () => {
-      const requests = await blink.db.accessRequests.list({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      })
-      return requests as AccessRequest[]
-    },
-    enabled: !!userId,
+    queryFn: async () => (await db.accessRequests.list({ where: { userId }, orderBy: { createdAt: 'desc' } })) as AccessRequest[],
+    enabled: Boolean(userId),
   })
 }
 
@@ -101,13 +83,16 @@ export function useCreateEvent() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: Partial<Event>) => {
-      return blink.db.events.create({
-        ...data,
-        createdAt: new Date().toISOString(),
-      })
+      if (!data.hostId || !data.title?.trim() || !data.location?.trim() || !data.dateTime) {
+        throw new Error('Host, title, venue and date are required')
+      }
+      if (new Date(data.dateTime).getTime() <= Date.now()) throw new Error('The event date must be in the future')
+      if (!Number.isInteger(Number(data.capacity)) || Number(data.capacity) < 1) throw new Error('Capacity must be a positive whole number')
+      return db.events.create({ ...data, title: data.title.trim(), location: data.location.trim(), createdAt: new Date().toISOString() })
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
+      if (variables.hostId) queryClient.invalidateQueries({ queryKey: ['events', 'host', variables.hostId] })
     },
   })
 }
@@ -122,21 +107,28 @@ export function useRequestAccess() {
       userEmail?: string
       userAvatar?: string
     }) => {
-      const qrCode = `VYBE-${data.eventId}-${data.userId}-${Date.now()}`
-      return blink.db.accessRequests.create({
-        eventId: data.eventId,
-        userId: data.userId,
-        userName: data.userName,
-        userEmail: data.userEmail,
-        userAvatar: data.userAvatar,
+      const [event, existing] = await Promise.all([
+        db.events.get(data.eventId),
+        db.accessRequests.list({ where: { eventId: data.eventId, userId: data.userId }, limit: 1 }),
+      ])
+      if (!event) throw new Error('This event is no longer available')
+      if (existing.length > 0) throw new Error('You already requested access to this event')
+      if (new Date(event.dateTime).getTime() <= Date.now()) throw new Error('Access requests are closed for past events')
+      if (Number(event.attendeeCount || 0) >= Number(event.capacity || 0)) throw new Error('This event is already at capacity')
+
+      const now = new Date().toISOString()
+      return db.accessRequests.create({
+        ...data,
         status: 'pending',
-        qrCode,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        qrCode: `VYBE-${data.eventId}-${data.userId}-${Date.now()}`,
+        checkedIn: 0,
+        createdAt: now,
+        updatedAt: now,
       })
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['access-requests', 'user', variables.userId] })
+      queryClient.invalidateQueries({ queryKey: ['access-requests', variables.eventId] })
     },
   })
 }
@@ -144,14 +136,25 @@ export function useRequestAccess() {
 export function useUpdateRequestStatus() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, status, eventId }: { id: string; status: 'approved' | 'denied'; eventId: string }) => {
-      return blink.db.accessRequests.update(id, {
-        status,
-        updatedAt: new Date().toISOString(),
-      })
+    mutationFn: async ({ id, status, eventId, hostId }: {
+      id: string
+      status: 'approved' | 'denied'
+      eventId: string
+      hostId: string
+    }) => {
+      const [event, request] = await Promise.all([db.events.get(eventId), db.accessRequests.get(id)])
+      if (!event || event.hostId !== hostId) throw new Error('You are not authorised to manage this event')
+      if (!request || request.eventId !== eventId) throw new Error('Access request not found')
+      if (request.status !== 'pending') throw new Error('This request has already been processed')
+      if (status === 'approved') {
+        const approved = await db.accessRequests.list({ where: { eventId, status: 'approved' } })
+        if (approved.length >= Number(event.capacity || 0)) throw new Error('This event has reached capacity')
+      }
+      return db.accessRequests.update(id, { status, updatedAt: new Date().toISOString() })
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['access-requests', variables.eventId] })
+      queryClient.invalidateQueries({ queryKey: ['access-requests', 'user'] })
     },
   })
 }
@@ -160,43 +163,41 @@ export function useCheckIn() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ qrCode, hostId }: { qrCode: string; hostId: string }) => {
-      const requests = await blink.db.accessRequests.list({
-        where: { qrCode },
-        limit: 1,
-      })
-
-      if (requests.length === 0) {
-        throw new Error('Invalid QR Code')
-      }
+      if (!qrCode.startsWith('VYBE-')) throw new Error('Invalid VYBE ticket')
+      const requests = await db.accessRequests.list({ where: { qrCode }, limit: 1 })
+      if (requests.length === 0) throw new Error('Invalid QR code')
 
       const request = requests[0] as AccessRequest
+      const event = (await db.events.get(request.eventId)) as Event | null
+      if (!event) throw new Error('Event not found')
+      if (event.hostId !== hostId) throw new Error('This ticket belongs to another host’s event')
+      if (request.status !== 'approved') throw new Error(`Entry denied. Ticket status: ${request.status}`)
+      if (Number(request.checkedIn) > 0) throw new Error('Ticket already used')
+      if (new Date(event.dateTime).getTime() + 24 * 60 * 60 * 1000 < Date.now()) throw new Error('This event ticket has expired')
 
-      const event = await blink.db.events.get(request.eventId)
-      if (!event || (event as any).hostId !== hostId) {
-        throw new Error('This ticket is not for your event')
-      }
-
-      if (request.status !== 'approved') {
-        throw new Error(`Entry denied. Status: ${request.status}`)
-      }
-
-      if (Number(request.checkedIn) > 0) {
-        throw new Error('Ticket already used')
-      }
-
-      await blink.db.accessRequests.update(request.id, {
+      const checkInToken = `${hostId}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const now = new Date().toISOString()
+      await db.accessRequests.update(request.id, {
         checkedIn: 1,
-        updatedAt: new Date().toISOString(),
+        checkedInAt: now,
+        checkedInBy: hostId,
+        checkInToken,
+        updatedAt: now,
       })
 
-      await blink.db.events.update(request.eventId, {
-        attendeeCount: (event as any).attendeeCount + 1,
-      })
+      const verified = (await db.accessRequests.get(request.id)) as AccessRequest | null
+      if (!verified || verified.checkInToken !== checkInToken) throw new Error('Ticket was processed by another scanner')
 
-      return { request, event }
+      const checkedInRequests = await db.accessRequests.list({ where: { eventId: request.eventId, checkedIn: 1 } })
+      const attendeeCount = checkedInRequests.length
+      if (attendeeCount > Number(event.capacity || 0)) throw new Error('Event capacity has been reached')
+      await db.events.update(request.eventId, { attendeeCount })
+      return { request: verified, event: { ...event, attendeeCount } as Event }
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ['access-requests', data.request.eventId] })
+      queryClient.invalidateQueries({ queryKey: ['access-requests', 'user', data.request.userId] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
       queryClient.invalidateQueries({ queryKey: ['events', data.request.eventId] })
     },
   })

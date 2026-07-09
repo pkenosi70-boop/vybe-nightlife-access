@@ -1,79 +1,57 @@
-# Expo React Native Template
+# Vybe Nightlife Access
 
-This is a React Native template using Expo Router and configured for web, iOS, and Android development.
+Vybe is an Expo and React Native nightlife discovery and access app. Guests can discover events, request access, receive a QR ticket after approval and check in at the door. Hosts can create events, manage requests and scan approved tickets.
 
-## Quick Start
+## Run locally
+
+Requirements: Node.js 20 or newer and the Expo Go app for phone testing.
 
 ```bash
-# Fast installation with Bun (recommended)
-bun install
-
-# Or use npm (slower but more stable)
 npm install
-
-# Start development server
-npm run dev
+npm start
 ```
 
-The app will be available at `http://localhost:3000`
+Scan the terminal QR code with Expo Go, or use:
 
-## Available Commands
-
-### Development
-- `npm run dev` - Start development server for web on port 3000
-- `npm start` - Start development server (shows QR code for mobile)
-- `npm run start:web` - Start web development server
-- `npm run start:ios` - Start iOS development server
-- `npm run start:android` - Start Android development server
-
-### Building
-- `npm run build:web` - Build for web production
-- `npm run build:ios` - Build for iOS
-- `npm run build:android` - Build for Android
-
-### Package Management (Bun - Fast)
-- `bun install` - Install dependencies (fastest)
-- `npm run install:fast` - Install with Bun, skip postinstall (very fast)
-- `npm run add <package>` - Add package with Bun
-- `npm run setup` - Run Expo install for native linking
-
-### Package Management (npm - Stable)
-- `npm install` - Install dependencies (slower but stable)
-- `npm run setup` - Run Expo install for native linking
-
-### Utilities
-- `npm run doctor` - Check project setup and dependencies
-- `npm run upgrade` - Upgrade Expo SDK and dependencies
-- `npm run lint` - Run linting
-- `npm run eject` - Eject from Expo (use with caution)
-
-## Project Structure
-
-```
-├── app/                 # Expo Router pages
-├── components/          # Reusable components
-├── assets/             # Images, fonts, etc.
-├── hooks/              # Custom hooks
-└── package.json        # Dependencies and scripts
+```bash
+npm run start:web
+npm run start:android
+npm run start:ios
 ```
 
-## Performance Tips
+## Checks
 
-### For fastest installation:
-1. Use `bun install` (2-10x faster than npm)
-2. Use `npm run install:fast` to skip postinstall steps
-3. Only run `npm run setup` when you need native linking
+```bash
+npm run typecheck
+npm run lint
+npm run doctor
+npm run build:web
+```
 
-### For most stable installation:
-1. Use `npm install` (slower but more compatible)
-2. Run `npm run setup` after installing new native dependencies
+`expo-doctor` needs internet access for all of its remote checks.
 
-## Notes for AI Agents
+## Configuration
 
-- **Fast setup**: Use `bun install` then `npm run dev`
-- **Stable setup**: Use `npm install` then `npm run dev`
-- Use `npm run doctor` to diagnose issues
-- Use `npm run setup` instead of `npm run install` for Expo packages
-- The project uses Expo Router for navigation
-- Web version runs on port 3000 by default
-- Bun is 2-10x faster than npm for package installation 
+The app reads these optional environment variables:
+
+```text
+EXPO_PUBLIC_BLINK_PROJECT_ID
+EXPO_PUBLIC_BLINK_PUBLISHABLE_KEY
+```
+
+Copy `.env.example` to `.env` when moving to a different Blink project. The current Blink project fallback remains in `lib/blink.ts` so the existing project can continue running.
+
+For Expo cloud builds, install EAS CLI and run `eas init` once. This creates a real EAS project ID; no placeholder ID is committed.
+
+## Core manual test flow
+
+1. Sign up and sign in.
+2. Create a future event with a capacity and optional cover image.
+3. Use another account to request access.
+4. Approve the request from the host account.
+5. Open the guest QR ticket.
+6. Scan the ticket once from the host dashboard.
+7. Confirm a second scan is rejected.
+8. Sign out and sign back in.
+
+See `STABLE_BUILD_NOTES.md` for the repair summary and remaining production checks.

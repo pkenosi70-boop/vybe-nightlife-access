@@ -30,14 +30,16 @@ export default function EventDetailScreen() {
 
   const existingRequest = userRequests.find(r => r.eventId === id)
   const isPast = event ? new Date(event.dateTime) < new Date() : false
-  const canReview = existingRequest?.status === 'approved' && isPast && !myReview
+  const isHost = event?.hostId === user?.id
+  const isFull = event ? Number(event.attendeeCount || 0) >= Number(event.capacity || 0) : false
+  const canReview = Number(existingRequest?.checkedIn) > 0 && isPast && !myReview
 
   const handleRequestAccess = async () => {
     if (!user) {
       router.push('/auth')
       return
     }
-    if (existingRequest) return
+    if (existingRequest || isHost || isFull || isPast || requesting) return
 
     setRequesting(true)
     try {
@@ -90,6 +92,8 @@ export default function EventDetailScreen() {
 
   const getRequestBtn = () => {
     if (!user) return { label: 'Sign In to Request Access', color: COLORS.primary, disabled: false }
+    if (isHost) return { label: 'You are hosting this event', color: COLORS.primary, disabled: true }
+    if (isFull) return { label: 'Event at Capacity', color: COLORS.denied, disabled: true }
     if (!existingRequest) return { label: 'Request Access', color: COLORS.primary, disabled: false }
     switch (existingRequest.status) {
       case 'pending': return { label: '⏳ Request Pending', color: COLORS.warning, disabled: true }

@@ -1,31 +1,31 @@
 {
   "expo": {
-    "name": "blink-expo-starter",
-    "slug": "blink-expo-starter",
+    "name": "Vybe Nightlife Access",
+    "slug": "vybe-nightlife-access",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "blinkexpo",
+    "scheme": "vybe",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0A0F"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.blink.expostarter"
+      "bundleIdentifier": "com.vybe.nightlifeaccess"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0A0A0F"
       },
-      "package": "com.blink.expostarter"
+      "package": "com.vybe.nightlifeaccess"
     },
     "web": {
       "bundler": "metro",
@@ -35,7 +35,19 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Vybe to scan guest QR tickets."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Vybe to select event cover images."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -43,9 +55,6 @@
     "extra": {
       "router": {
         "origin": false
-      },
-      "eas": {
-        "projectId": "your-project-id-here"
       }
     }
   }
